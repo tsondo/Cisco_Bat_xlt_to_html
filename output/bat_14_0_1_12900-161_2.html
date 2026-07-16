@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BAT File Builder — bat_14_0_1_12900-161_2.xlt</title>
+<style>
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#1a2330; --muted:#5b6b7d;
+  --rail:#122033; --rail-ink:#c7d4e2; --rail-hi:#203954;
+  --accent:#0d6efd; --accent-ink:#ffffff; --ok:#1a7f4b;
+  --err:#c62828; --err-bg:#fdecea; --req:#8a5300; --line:#d5dce4;
+  --mono:ui-monospace,'Cascadia Mono','Consolas',Menlo,monospace;
+  --sans:system-ui,'Segoe UI',Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:var(--sans);color:var(--ink);background:var(--bg)}
+body{display:flex;overflow:hidden}
+
+/* ── left rail: transaction list ─────────────────────────── */
+#rail{width:250px;min-width:250px;background:var(--rail);color:var(--rail-ink);
+  display:flex;flex-direction:column;height:100vh}
+#rail h1{font-size:14px;letter-spacing:.08em;text-transform:uppercase;margin:0;
+  padding:14px 14px 4px;color:#fff}
+#rail .sub{font-size:11px;color:#7f93a8;padding:0 14px 10px;font-family:var(--mono)}
+#railSearch{margin:0 10px 8px;padding:6px 8px;border:1px solid #2c4258;border-radius:4px;
+  background:#0c1826;color:#e8eef4;font-size:12px}
+#railSearch:focus{outline:2px solid var(--accent)}
+#tabs{overflow-y:auto;flex:1;padding-bottom:12px}
+#tabs button{display:block;width:100%;text-align:left;background:none;border:0;
+  color:var(--rail-ink);padding:7px 14px;font-size:12.5px;cursor:pointer;
+  border-left:3px solid transparent}
+#tabs button:hover{background:#1a2e44;color:#fff}
+#tabs button.active{background:#203954;color:#fff;border-left-color:var(--accent);font-weight:600}
+#tabs button .dyn{font-size:9px;background:#315170;border-radius:3px;padding:1px 4px;margin-left:6px;
+  color:#aecdec;vertical-align:1px}
+
+/* ── main column ─────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;height:100vh;min-width:0}
+#bar{background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#bar h2{font-size:16px;margin:0 12px 0 0}
+#bar button, #fmt button{font:600 12.5px var(--sans);padding:7px 12px;border-radius:4px;
+  border:1px solid var(--line);background:#f7f9fb;color:var(--ink);cursor:pointer}
+#bar button:hover,#fmt button:hover{border-color:var(--accent);color:var(--accent)}
+#bar button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#bar button.primary:hover{filter:brightness(1.08);color:#fff}
+#bar label.chk{font-size:12.5px;display:flex;gap:5px;align-items:center;color:var(--muted)}
+#status{margin-left:auto;font-size:12px;color:var(--muted);font-family:var(--mono)}
+
+/* ── format builder panel ─────────────────────────────────── */
+#fmt{background:#f4f7fa;border-bottom:1px solid var(--line);padding:12px 16px;display:none}
+#fmt.open{display:block}
+#fmt .cols{display:flex;gap:18px;flex-wrap:wrap}
+#fmt fieldset{border:1px solid var(--line);border-radius:6px;background:#fff;
+  min-width:230px;max-width:300px;padding:8px 10px;margin:0}
+#fmt legend{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#fmt .list{max-height:180px;overflow-y:auto;font-size:12px}
+#fmt .list label{display:block;padding:2px 2px;cursor:pointer}
+#fmt .list label:hover{background:#eef4fb}
+#fmt .counts label{display:flex;justify-content:space-between;align-items:center;
+  font-size:12.5px;padding:3px 0}
+#fmt .counts input{width:60px;padding:3px 6px;border:1px solid var(--line);border-radius:4px;
+  font-family:var(--mono)}
+#fmt .apply{margin-top:10px}
+#fmt .note{font-size:11.5px;color:var(--muted);margin-top:8px;max-width:640px}
+
+/* ── data grid ────────────────────────────────────────────── */
+#gridWrap{flex:1;overflow:auto;padding:0}
+table{border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:100%}
+th{position:sticky;top:0;background:#e7edf3;border-bottom:2px solid var(--line);
+  border-right:1px solid var(--line);padding:6px 8px;text-align:left;font-size:11.5px;
+  white-space:nowrap;z-index:2;vertical-align:bottom}
+th .meta{display:block;font-weight:400;color:var(--muted);font-family:var(--mono);font-size:10px}
+th.req{color:var(--req)}
+th.rownum, td.rownum{position:sticky;left:0;background:#e7edf3;border-right:2px solid var(--line);
+  min-width:38px;text-align:right;color:var(--muted);font-family:var(--mono);z-index:3;padding:4px 6px}
+td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:0;background:#fff}
+td input{width:100%;min-width:130px;border:0;padding:6px 8px;font:12.5px var(--mono);
+  background:transparent;color:var(--ink)}
+td input:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#f4f9ff}
+td.invalid{background:var(--err-bg)}
+td.invalid input{color:var(--err)}
+td .del{border:0;background:none;color:#b0bcc9;cursor:pointer;font-size:14px;padding:2px 6px}
+td .del:hover{color:var(--err)}
+#empty{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+
+/* ── footer / errors ─────────────────────────────────────── */
+#errs{background:var(--err-bg);color:var(--err);border-top:1px solid #f2b8b5;
+  max-height:130px;overflow-y:auto;padding:8px 16px;font-size:12px;display:none;font-family:var(--mono)}
+#errs.open{display:block}
+#errs div{padding:1px 0}
+
+/* ── dialogs ─────────────────────────────────────────────── */
+dialog{border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 40px rgba(10,25,45,.25);
+  padding:0;max-width:560px;width:92vw}
+dialog::backdrop{background:rgba(10,20,35,.45)}
+dialog header{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+dialog .body{padding:14px 16px;font-size:13px}
+dialog footer{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+dialog input[type=text],dialog textarea{width:100%;padding:7px 9px;border:1px solid var(--line);
+  border-radius:4px;font-family:var(--mono);font-size:12.5px}
+dialog textarea{height:160px;resize:vertical}
+dialog button{font:600 12.5px var(--sans);padding:7px 14px;border-radius:4px;
+  border:1px solid var(--line);background:#f7f9fb;cursor:pointer}
+dialog button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+#helpBody{max-height:60vh;overflow-y:auto;white-space:pre-wrap;font-size:12.5px;line-height:1.5}
+kbd{font-family:var(--mono);background:#eef1f4;border:1px solid var(--line);border-radius:3px;
+  padding:0 4px;font-size:11px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<nav id="rail" aria-label="BAT transactions">
+  <h1>BAT File Builder</h1>
+  <div class="sub" id="srcInfo"></div>
+  <input id="railSearch" type="search" placeholder="Filter tabs…" aria-label="Filter tabs">
+  <div id="tabs" role="tablist"></div>
+</nav>
+
+<div id="main">
+  <div id="bar">
+    <h2 id="sheetTitle"></h2>
+    <button id="btnFmt" hidden>Create File Format</button>
+    <button id="btnAddRow">Add Row</button>
+    <button id="btnAddRows">Add 10 Rows</button>
+    <button id="btnPaste">Paste from Excel</button>
+    <button id="btnClear">Clear Tab</button>
+    <label class="chk" id="dummyWrap" hidden>
+      <input type="checkbox" id="dummyMac"> Create Dummy MAC Address
+    </label>
+    <button class="primary" id="btnExport">Export to BAT Format</button>
+    <button id="btnHelp" title="Help">Help</button>
+    <span id="status"></span>
+  </div>
+
+  <div id="fmt">
+    <div class="cols">
+      <fieldset id="fsDevice"><legend>Device Fields</legend><div class="list" id="listDevice"></div></fieldset>
+      <fieldset id="fsLine"><legend>Line Fields (per line)</legend><div class="list" id="listLine"></div></fieldset>
+      <fieldset id="fsIntercom"><legend>Intercom Fields (per intercom)</legend><div class="list" id="listIntercom"></div></fieldset>
+      <fieldset><legend>Counts</legend><div class="counts" id="countInputs"></div>
+        <button class="primary apply" id="btnApplyFmt">Apply Format</button>
+      </fieldset>
+    </div>
+    <div class="note">Changing the format rebuilds this tab's columns. Data already entered is kept
+      for columns whose names still exist. This mirrors the xlt's <b>Create File Format</b> dialog.</div>
+  </div>
+
+  <div id="gridWrap"><div id="empty">Click <b>Add Row</b> or <b>Paste from Excel</b> to begin.</div></div>
+  <div id="errs"></div>
+</div>
+
+<dialog id="dlgExport">
+  <header>Export to BAT Format</header>
+  <div class="body">
+    <p style="margin-top:0">File name (a <span style="font-family:var(--mono)">.txt</span> extension is added automatically):</p>
+    <input type="text" id="exportName" spellcheck="false">
+    <p id="exportSummary" style="color:var(--muted);font-size:12px"></p>
+  </div>
+  <footer>
+    <button id="exportCancel">Cancel</button>
+    <button class="primary" id="exportGo">Export</button>
+  </footer>
+</dialog>
+
+<dialog id="dlgPaste">
+  <header>Paste from Excel / CSV</header>
+  <div class="body">
+    <p style="margin-top:0">Copy rows in Excel and paste them here (<kbd>Ctrl</kbd>+<kbd>V</kbd>).
+    Tab-separated (Excel) and comma-separated values are both accepted. Columns map left-to-right
+    onto this tab's columns. Do <b>not</b> include the header row.</p>
+    <textarea id="pasteArea" spellcheck="false" placeholder="SEP0011223344AA&#9;Bldg 2050 Rm 114&#9;…"></textarea>
+  </div>
+  <footer>
+    <button id="pasteCancel">Cancel</button>
+    <button class="primary" id="pasteGo">Add Rows</button>
+  </footer>
+</dialog>
+
+<dialog id="dlgHelp">
+  <header>Help</header>
+  <div class="body"><div id="helpBody"></div></div>
+  <footer><button class="primary" id="helpClose">Close</button></footer>
+</dialog>
+
+<script>
+"use strict";
+const MODEL = {"source":"bat_14_0_1_12900-161_2.xlt","generated":"2026-07-16","sheets":[{"name":"Phones-Users","columns":[{"name":"First Name","type":"String","len":64,"req":false},{"name":"Last Name","type":"String","len":64,"req":true},{"name":"UserID","type":"String","len":132,"req":true},{"name":"Display Name","type":"String","len":64,"req":false},{"name":"Password","type":"String","len":20,"req":false},{"name":"Manager","type":"String","len":128,"req":false},{"name":"Department","type":"String","len":64,"req":false},{"name":"PIN","type":"Integer","len":20,"req":false},{"name":"Default Profile","type":"String","len":50,"req":false},{"name":"User Locale","type":"String","len":50,"req":false},{"name":"Telephone Number","type":"Integer","len":50,"req":false},{"name":"Mobile Number","type":"Integer","len":50,"req":false},{"name":"Home Number","type":"Integer","len":50,"req":false},{"name":"Pager Number","type":"Integer","len":50,"req":false},{"name":"Title","type":"String","len":64,"req":false},{"name":"Primary Extension","type":"Integer","len":50,"req":false},{"name":"Associated PC","type":"String","len":50,"req":false},{"name":"IPCC Extension","type":"Integer","len":50,"req":false},{"name":"Mail ID","type":"String","len":255,"req":false},{"name":"Presence Group","type":"String","len":50,"req":false},{"name":"Subscribe Calling Search Space","type":"String","len":50,"req":false},{"name":"Digest Credentials","type":"String","len":128,"req":false},{"name":"Remote Destination Limit","type":"Number","len":2,"req":false},{"name":"Maximum Wait Time for Desk Pickup","type":"Number","len":5,"req":false},{"name":"Enable EMCC","type":"Boolean","len":null,"req":false},{"name":"Directory URI","type":"String","len":254,"req":false},{"name":"Enable Mobility","type":"Boolean","len":null,"req":false},{"name":"Allow Control of Device from CTI","type":"Boolean","len":null,"req":false},{"name":"Self-Service User ID","type":"String","len":16,"req":false},{"name":"User Profile","type":"String","len":50,"req":false},{"name":"Assigned Presence Server","type":"String","len":50,"req":false},{"name":"HOME CLUSTER","type":"Boolean","len":null,"req":false},{"name":"ENABLE USER FOR UNIFIED CM IM AND PRESENCE","type":"Boolean","len":null,"req":false},{"name":"EM MAX LOGIN TIME","type":"Number","len":5,"req":false},{"name":"MAC Address/Device Name","type":"Integer","len":50,"req":true},{"name":"Description","type":"String","len":128,"req":false}]},{"name":"Phones","columns":[{"name":"MAC Address/Device Name","type":"String","len":50,"req":true},{"name":"Description","type":"String","len":128,"req":false}]},{"name":"CTI Port","columns":[{"name":"Device Name   (String[15] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"UserID (String[30]OPTIONAL)","type":"String","len":null,"req":false}]},{"name":"H.323 Client","columns":[{"name":"Device Name   (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"UserID (String[30]OPTIONAL)","type":"String","len":null,"req":false}]},{"name":"VGC Virtual Phone","columns":[{"name":"MAC Address   (String[12] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"UserID (String[30]OPTIONAL)","type":"String","len":null,"req":false}]},{"name":"VGC Phone","columns":[{"name":"MAC Address   (String[12] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"UserID (String[30]OPTIONAL)","type":"String","len":null,"req":false},{"name":"Speed Dial Number 1 [Integer[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Speed Dial Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"User Device Profiles","columns":[{"name":"Device Profile Name","type":"String","len":50,"req":true},{"name":"Description","type":"String","len":128,"req":false}]},{"name":"Users","columns":[{"name":"First Name","type":"String","len":64,"req":false},{"name":"Middle Name","type":"String","len":50,"req":false},{"name":"Last Name","type":"String","len":64,"req":true},{"name":"User ID","type":"String","len":132,"req":true},{"name":"Password","type":"String","len":20,"req":false},{"name":"Display Name","type":"String","len":50,"req":false},{"name":"Manager  User ID","type":"String","len":128,"req":false},{"name":"Department","type":"String","len":64,"req":false},{"name":"PIN","type":"Integer","len":20,"req":false},{"name":"Default Profile","type":"String","len":50,"req":false},{"name":"User Locale","type":"String","len":50,"req":false},{"name":"Telephone Number","type":"Integer","len":50,"req":false},{"name":"Mobile Number","type":"Integer","len":50,"req":false},{"name":"Home Number","type":"Integer","len":50,"req":false},{"name":"Pager Number","type":"Integer","len":50,"req":false},{"name":"Title","type":"String","len":64,"req":false},{"name":"Primary Extension","type":"Integer","len":50,"req":false},{"name":"Associated PC","type":"String","len":50,"req":false},{"name":"IPCC Extension","type":"Integer","len":50,"req":false},{"name":"Mail ID","type":"String","len":255,"req":false},{"name":"Presence Group","type":"String","len":50,"req":false},{"name":"Subscribe Calling Search Space","type":"String","len":50,"req":false},{"name":"Digest Credentials","type":"String","len":128,"req":false},{"name":"Remote Destination Limit","type":"Number","len":2,"req":false},{"name":"Maximum Wait Time for Desk Pickup","type":"Number","len":5,"req":false},{"name":"Enable EMCC","type":"Boolean","len":null,"req":false},{"name":"Directory URI","type":"String","len":254,"req":false},{"name":"Enable Mobility","type":"Boolean","len":null,"req":false},{"name":"Enable Mobile Voice Access","type":"Boolean","len":null,"req":false},{"name":"Allow Control of Device from CTI","type":"Boolean","len":null,"req":false},{"name":"Name Dialing","type":"String","len":50,"req":false},{"name":"MLPP User Identification Number","type":"Integer","len":20,"req":false},{"name":"MLPP Password","type":"Integer","len":20,"req":false},{"name":"MLPP Precedence Authorization Level","type":"Integer","len":50,"req":false},{"name":"HOME CLUSTER","type":"Boolean","len":null,"req":false},{"name":"ENABLE USER FOR UNIFIED CM IM AND PRESENCE","type":"Boolean","len":null,"req":false},{"name":"UC SERVICE PROFILE","type":"String","len":50,"req":false},{"name":"INCLUDE MEETING INFORMATION IN PRESENCE","type":"Boolean","len":null,"req":false},{"name":"Self-Service User ID","type":"String","len":16,"req":false},{"name":"User Profile","type":"String","len":50,"req":false},{"name":"Assigned Presence Server","type":"String","len":50,"req":false},{"name":"Enable End User to Host Conference Now","type":"Boolean","len":null,"req":false},{"name":"Meeting Number","type":"String","len":null,"req":false},{"name":"Attendees Access Code","type":"Number","len":10,"req":false},{"name":"EM MAX LOGIN TIME","type":"Number","len":5,"req":false}]},{"name":"Update Users","columns":[{"name":"UserID               (String[132] MANDATORY)","type":"String","len":null,"req":false},{"name":"Manager             (String[128] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Department","type":"String","len":64,"req":false},{"name":"Default Profile","type":"String","len":50,"req":false},{"name":"User Locale","type":"String","len":50,"req":false},{"name":"Password","type":"String","len":20,"req":false},{"name":"PIN","type":"Integer","len":20,"req":false},{"name":"Telephone Number","type":"Integer","len":50,"req":false},{"name":"Mobile Number","type":"Integer","len":50,"req":false},{"name":"Home Number","type":"Integer","len":50,"req":false},{"name":"Pager Number","type":"Integer","len":50,"req":false},{"name":"Title","type":"String","len":64,"req":false},{"name":"Primary Extension","type":"Integer","len":50,"req":false},{"name":"Associated PC","type":"String","len":50,"req":false},{"name":"IPCC Extension","type":"Integer","len":50,"req":false},{"name":"Mail ID","type":"String","len":255,"req":false},{"name":"Presence Group","type":"String","len":50,"req":false},{"name":"Subscribe Calling Search Space","type":"String","len":50,"req":false},{"name":"Digest Credentials","type":"String","len":128,"req":false},{"name":"Remote Destination Limit","type":"Number","len":2,"req":false},{"name":"Maximum Wait Time for Desk Pickup","type":"Number","len":5,"req":false},{"name":"Allow Control of Device from CTI","type":"Boolean","len":null,"req":false},{"name":"Enable Mobility","type":"Boolean","len":null,"req":false},{"name":"Enable Mobile Voice Access","type":"Boolean","len":null,"req":false},{"name":"Enable EMCC","type":"Boolean","len":null,"req":false},{"name":"Directory URI","type":"String","len":254,"req":false},{"name":"Name Dialing","type":"String","len":50,"req":false},{"name":"MLPP User Identification Number","type":"Integer","len":20,"req":false},{"name":"MLPP Password","type":"Integer","len":20,"req":false},{"name":"MLPP Precedence Authorization Level","type":"Integer","len":50,"req":false},{"name":"Home Cluster","type":"Boolean","len":null,"req":false},{"name":"ENABLE USER FOR UNIFIED CM IM AND PRESENCE","type":"Boolean","len":null,"req":false},{"name":"UC Service Profile","type":"String","len":50,"req":false},{"name":"INCLUDE MEETING INFORMATION IN PRESENCE","type":"Boolean","len":null,"req":false},{"name":"Self-Service User ID","type":"String","len":16,"req":false},{"name":"User Profile","type":"String","len":50,"req":false},{"name":"Assigned Presence Server","type":"String","len":50,"req":false},{"name":"EM MAX LOGIN TIME","type":"Number","len":5,"req":false}]},{"name":"CTI Port-Users","columns":[{"name":"First Name                   (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Last Name                     (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"UserID                     (String[30] MANDATORY)","type":"String","len":null,"req":false},{"name":"Password              (String[20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Manager             (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Department (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"PIN                        (Integer [20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Device Profile (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Locale        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Owned Device MAC Address","type":"String","len":12,"req":false},{"name":"Device Name         (String[15] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description            (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"H.323 Client-Users","columns":[{"name":"First Name                   (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Last Name                     (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"UserID                     (String[30] MANDATORY)","type":"String","len":null,"req":false},{"name":"Password              (String[20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Manager             (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Department (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"PIN                        (Integer [20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Device Profile (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Locale        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Owned Device MAC Address","type":"String","len":12,"req":false},{"name":"Device Name         (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description            (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"VGC Virtual Phone-Users","columns":[{"name":"First Name                   (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Last Name                     (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"UserID                     (String[30] MANDATORY)","type":"String","len":null,"req":false},{"name":"Password              (String[20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Manager             (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Department (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"PIN                        (Integer [20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Device Profile (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Locale        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Owned Device MAC Address","type":"String","len":12,"req":false},{"name":"MAC Address      (String[12] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description            (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"VGC Phone-Users","columns":[{"name":"First Name                   (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"Last Name                     (String[50] MANDATORY)","type":"String","len":null,"req":false},{"name":"UserID                      (String[30] MANDATORY)","type":"String","len":null,"req":false},{"name":"Password              (String[20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Manager             (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Department                                 (String[30] OPTIONAL)","type":"String","len":null,"req":false},{"name":"PIN                        (Integer [20] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Device Profile (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"User Locale        (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Owned Device MAC Address","type":"String","len":12,"req":false},{"name":"MAC Address             (String[12] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description            (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Location       (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Directory Number 1 [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Display 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Line Text Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward Busy Destination 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Forward No Answer 1 [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Call Pickup Group 1 [String[50/50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Speed Dial Number 1 [Integer[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Speed Dial Label 1 [String[30]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"VG200 FXS FXO","columns":[{"name":"MGCP Domain Name (String [64] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description      (String[100] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 1 Description   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 1 Directory Number (Integer[24] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 1 Partition   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 2 Description   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 2 Directory Number (Integer[24] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 2 Partition   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 3 Description   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 3 Directory Number (Integer[24] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 3 Partition   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 4 Description   (String[50] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 4 Directory Number (Integer[24] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port 4 Partition   (String[50] OPTIONAL)","type":"String","len":null,"req":false}]},{"name":"VG200 T1Pri T1Cas E1Pri FXS FXO","columns":[{"name":"Domain Name","type":"String","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false},{"name":"T1-CAS Port(E&M) Number 1","type":"Integer","len":3,"req":false}]},{"name":"Catalyst 6000 (FXS) Ports","columns":[{"name":"MAC Address","type":"String","len":12,"req":true},{"name":"Port Number","type":"Integer","len":2,"req":true},{"name":"Directory Number","type":"Integer","len":24,"req":false}]},{"name":"Default Managers-Assistants","columns":[{"name":"Assistant ID","type":"String","len":30,"req":true},{"name":"Manager ID 1","type":"String","len":30,"req":true},{"name":"Manager ID 2","type":"String","len":30,"req":false}]},{"name":"Custom Managers-Assistants","columns":[{"name":"Manager ID","type":"String","len":30,"req":true},{"name":"Device Name","type":"String","len":15,"req":false},{"name":"Intercom DN","type":"Integer","len":24,"req":false},{"name":"Assistant ID","type":"String","len":30,"req":true},{"name":"Device Name","type":"String","len":15,"req":false},{"name":"Intercom DN","type":"Integer","len":24,"req":false},{"name":"Proxy Line DN 1","type":"Integer","len":24,"req":true},{"name":"Manager Line DN 1","type":"Integer","len":24,"req":true}]},{"name":"Add Lines","columns":[{"name":"MAC Address\\Device Name","type":"String","len":50,"req":true},{"name":"Line Index 1","type":"Integer","len":2,"req":true},{"name":"Directory Number 1","type":"Integer","len":50,"req":true},{"name":"Display 1","type":"String","len":30,"req":false},{"name":"Line Text Label 1","type":"String","len":30,"req":false},{"name":"Forward Busy External Destination 1","type":"String","len":255,"req":false},{"name":"Forward No Answer External Destination 1","type":"String","len":255,"req":false},{"name":"Forward No Coverage External Destination 1","type":"String","len":255,"req":false},{"name":"Forward Busy Internal Destination 1","type":"String","len":255,"req":false},{"name":"Forward No Answer Internal Destination 1","type":"String","len":255,"req":false},{"name":"Forward No Coverage Internal Destination 1","type":"String","len":255,"req":false},{"name":"Park Monitor Forward No Retrieve Ext Destination  1","type":"Integer","len":50,"req":false},{"name":"Park Monitor Forward No Retrieve Int Destination  1","type":"Integer","len":50,"req":false},{"name":"Park Monitor Forward No Retrieve Int Voice Mail  1","type":"Boolean","len":null,"req":false},{"name":"Park Monitor Forward No Retrieve Ext Voice Mail  1","type":"Boolean","len":null,"req":false},{"name":"Park Monitor Forward No Retrieve Ext CSS  1","type":"String","len":50,"req":false},{"name":"Park Monitor Forward No Retrieve Int CSS  1","type":"String","len":50,"req":false},{"name":"Park Monitoring Reversion Timer 1","type":"Integer","len":4,"req":false},{"name":"Call Pickup Group 1","type":"String","len":50,"req":false},{"name":"Party Entrance Tone 1","type":"String","len":10,"req":false},{"name":"Log Missed Calls 1","type":"Boolean","len":null,"req":false},{"name":"URI 1 on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 1 Route Partition on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 1 Is Primary on Directory Number 1","type":"Boolean","len":null,"req":false},{"name":"URI 2 on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 2 Route Partition on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 2 Is Primary on Directory Number 1","type":"Boolean","len":null,"req":false},{"name":"URI 3 on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 3 Route Partition on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 3 Is Primary on Directory Number 1","type":"Boolean","len":null,"req":false},{"name":"URI 4 on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 4 Route Partition on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 4 Is Primary on Directory Number 1","type":"Boolean","len":null,"req":false},{"name":"URI 5 on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 5 Route Partition on Directory Number 1","type":"String","len":50,"req":false},{"name":"URI 5 Is Primary on Directory Number 1","type":"Boolean","len":null,"req":false},{"name":"Reject Anonymous Calls 1","type":"Boolean","len":null,"req":false},{"name":"Urgent Priority 1","type":"Boolean","len":null,"req":false},{"name":"Enterprise Is Urgent 1","type":"Boolean","len":null,"req":false},{"name":"Enterprise Advertise Via globally 1","type":"Boolean","len":null,"req":false},{"name":"Enterprise Add To Local Route Partition 1","type":"Boolean","len":null,"req":false},{"name":"Enterprise Number Mask 1","type":"Integer","len":50,"req":false},{"name":"Enterprise Route Partition 1","type":"String","len":50,"req":false},{"name":"E.164 Is Urgent 1","type":"Boolean","len":null,"req":false},{"name":"E.164 Advertise Via globally 1","type":"Boolean","len":null,"req":false},{"name":"E.164 Add To Local Route Partition 1","type":"Boolean","len":null,"req":false},{"name":"E.164 Number Mask 1","type":"Integer","len":50,"req":false},{"name":"E.164 Route Partition 1","type":"String","len":50,"req":false},{"name":"Confidential Access Mode 1","type":"String","len":50,"req":false},{"name":"Confidential Access Level 1","type":"String","len":50,"req":false},{"name":"Call Control Agent Profile 1","type":"String","len":50,"req":false},{"name":"External Call Control Profile 1","type":"String","len":50,"req":false},{"name":"Calling Line ID Presentation When Diverted 1","type":"String","len":50,"req":false},{"name":"IsEnterprise Advertised Failover Number","type":"Boolean","len":null,"req":false},{"name":"IsE.164 Advertised Failover Number","type":"Boolean","len":null,"req":false},{"name":"URI 1 Advertise Globally via ILS","type":"Boolean","len":null,"req":false},{"name":"URI 2 Advertise Globally via ILS","type":"Boolean","len":null,"req":false},{"name":"URI 3 Advertise Globally via ILS","type":"Boolean","len":null,"req":false},{"name":"URI 4 Advertise Globally via ILS","type":"Boolean","len":null,"req":false},{"name":"URI 5 Advertise Globally via ILS","type":"Boolean","len":null,"req":false}]},{"name":"Add Intercom","columns":[{"name":"MAC Address\\Device Name","type":"String","len":50,"req":true},{"name":"Intercom Line Index 1","type":"Integer","len":2,"req":true},{"name":"Intercom Directory Number 1","type":"Integer","len":50,"req":true},{"name":"Intercom Display 1","type":"String","len":30,"req":false},{"name":"Intercom Line Text Label 1","type":"String","len":30,"req":false}]},{"name":"Insert FAC","columns":[{"name":"Forced Authorization Code","type":"Integer","len":16,"req":true},{"name":"Authorization Code Name","type":"String","len":50,"req":true},{"name":"AuthorizationLevel","type":"Integer","len":3,"req":true}]},{"name":"Insert CMC","columns":[{"name":"Client Matter Code","type":"Integer","len":16,"req":true},{"name":"Description","type":"String","len":50,"req":false}]},{"name":"Call Pickup Group","columns":[{"name":"Pickup Group Name","type":"String","len":null,"req":false},{"name":"Pickup Group Number","type":"String","len":null,"req":false},{"name":"Partition","type":"String","len":null,"req":false}]},{"name":"VG224","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG202-204","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG310","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG320","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG350","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG450","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"ISR4461","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"VG420","columns":[{"name":"MAC Address/Device Name","type":"Integer","len":64,"req":true},{"name":"Description","type":"String","len":100,"req":false},{"name":"Slot","type":"Integer","len":3,"req":true},{"name":"Subunit","type":"Integer","len":3,"req":true},{"name":"Port Directory Number","type":"String","len":50,"req":false},{"name":"Port Number","type":"Integer","len":3,"req":false},{"name":"Port Description","type":"String","len":128,"req":false}]},{"name":"Remote Destination Profile","columns":[{"name":"Remote Destination Profile Name","type":"String","len":50,"req":true},{"name":"Description","type":"String","len":128,"req":false}]},{"name":"Time of Day Access","columns":[{"name":"Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"Owner ID","type":"String","len":null,"req":false}]},{"name":"Phone Migration","columns":[{"name":"OLD DEVICE NAME","type":"String","len":null,"req":false},{"name":"NEW DEVICE MAC ADDRESS","type":"String","len":null,"req":false},{"name":"DESCRIPTION","type":"String","len":null,"req":false}]},{"name":"Trust Group","columns":[{"name":"Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"Trusted","type":"String","len":null,"req":false}]},{"name":"Trust Element","columns":[{"name":"Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"Element Type","type":"String","len":null,"req":false},{"name":"Trust Group","type":"String","len":null,"req":false}]},{"name":"Enrolled Group","columns":[{"name":"Group Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"FallBack Profile","type":"String","len":null,"req":false},{"name":"All Patterns in Group Are Aliases","type":"String","len":null,"req":false}]},{"name":"Exclusion Group","columns":[{"name":"Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false}]},{"name":"FallBack Profile","columns":[{"name":"Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"Advertised FallBack Directory E.164 Number","type":"String","len":null,"req":false},{"name":"FallBack QOS Sensitivity Level","type":"String","len":null,"req":false},{"name":"FallBack Call CSS","type":"String","len":null,"req":false},{"name":"FallBack Call Answer Timer","type":"String","len":null,"req":false},{"name":"FallBack Directory Number Partition","type":"String","len":null,"req":false},{"name":"FallBack Directory Number","type":"String","len":null,"req":false},{"name":"Number of Digits for Caller Id Partial Match","type":"String","len":null,"req":false}]},{"name":"VG200 NM-HDA","columns":[{"name":"MGCP Domain Name (String [64] MANDATORY)","type":"String","len":null,"req":false},{"name":"Description      (String[100] OPTIONAL)","type":"String","len":null,"req":false},{"name":"Port  1 Identifier [Integer[3]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Port  1 Description [String[50]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Port  1 Directory Number [Integer[24]OPTIONAL]","type":"String","len":null,"req":false},{"name":"Port  1 Partition [String[50]OPTIONAL]","type":"String","len":null,"req":false}]},{"name":"End User CAPF Profile","columns":[{"name":"End User ID","type":"String","len":null,"req":false},{"name":"Instance ID","type":"String","len":null,"req":false},{"name":"Certificate Operation","type":"String","len":null,"req":false},{"name":"Authentication Mode","type":"String","len":null,"req":false},{"name":"Authentication String","type":"String","len":null,"req":false},{"name":"Key Size","type":"String","len":null,"req":false},{"name":"Operation Completes By","type":"String","len":null,"req":false}]},{"name":"Mobility Profile","columns":[{"name":"Mobility Profile Name","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false},{"name":"Service Access Number","type":"String","len":null,"req":false},{"name":"Enterprise Feature Access Number/Partition","type":"String","len":null,"req":false},{"name":"Callback Caller ID","type":"String","len":null,"req":false},{"name":"Mobile Client Calling Option","type":"String","len":null,"req":false}]},{"name":"Insert Infrastructure Device","columns":[{"name":"AccessPoint or Switch Name","type":"String","len":null,"req":false},{"name":"IPv4 Address","type":"String","len":null,"req":false},{"name":"IPv6 Address","type":"String","len":null,"req":false},{"name":"BSSID","type":"String","len":null,"req":false},{"name":"Description","type":"String","len":null,"req":false}]}],"database":[{"name":"AAR CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","RDP"]},{"name":"AAR Destination Mask","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"AAR Group","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"AAR Group(Line)","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","RDP"]},{"name":"ASCII Alerting Name","len":30,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"ASCII Display","len":30,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Alerting Name","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Always Use Prime Line","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Always Use Prime Line for Voice Message","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Audible Message Waiting Indicator Policy","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Authentication Server","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Authentication String","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Auto Answer","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"BLF Audible Alert Setting (Phone Busy)","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"BLF Audible Alert Setting (Phone Idle)","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Built in Bridge","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Busy Trigger","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"CPG Audio Alert Setting(Phone Active)","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"CPG Audio Alert Setting(Phone Idle)","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"CSS Reroute","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Call Pickup Group","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Calling Party Transformation CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["RDP","Gateway"]},{"name":"Calling Search Space Activation Policy","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Certificate Operation","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Common Device Configuration","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Common Phone Profile","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"DND Incoming Call Alert","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"DND Option","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP"]},{"name":"Desk Phone Name","len":129,"type":"String","req":true,"cat":"Device","ops":["RDP"]},{"name":"Device Mobility Mode","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Device Pool","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"Device Presence Group","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Device Security Profile","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Device Subscribe CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Device Trust Mode","len":20,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Device User Locale","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Dial Rules","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Digest User","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Directory","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Directory Number","len":255,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP"]},{"name":"Display","len":120,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Do Not Disturb","len":50,"type":"Boolean","req":false,"cat":"Line","ops":["RDP"]},{"name":"Domain Name","len":64,"type":"String","req":false,"cat":"Device","ops":["Gateway"]},{"name":"E.164","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Enable Mobile Connect","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone"]},{"name":"Extension Mobility Cross Cluster CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["UDP"]},{"name":"External Phone Number Mask","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Feature Control Policy","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Forward All CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward All Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Busy External CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Busy External Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Busy Internal CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Busy Internal Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Answer External CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Answer External Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Answer Internal CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Answer Internal Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Answer Ring Duration","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Coverage External CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Coverage External Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Coverage Internal CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward No Coverage Internal Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Unregistered External CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Unregistered External Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Unregistered Internal CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward Unregistered Internal Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward on CTI Failure CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Forward on CTI Failure Destination","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Geo Location","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Hold Reversion Notification Interval","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP"]},{"name":"Hold Reversion Ring Duration","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP"]},{"name":"Hotline Device","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Idle","len":255,"type":"Integer","req":false,"cat":"Device","ops":["Phone"]},{"name":"Idle Timer","len":50,"type":"Integer","req":false,"cat":"Device","ops":["Phone"]},{"name":"Information","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Intercom ASCII Alerting Name","len":30,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom ASCII Display","len":30,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Alerting Name","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Auto Answer","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom CSS","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Caller Name","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Caller Number","len":50,"type":"Integer","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Default Activated Device","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Description","len":200,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Directory Number","len":255,"type":"Integer","req":true,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Display","len":120,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom External Phone Number Mask","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Line Text Label","len":120,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Presence Group","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Route Partition","len":50,"type":"String","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Intercom Speed Dial","len":50,"type":"Integer","req":false,"cat":"Intercom","ops":["Phone","UDP"]},{"name":"Join Across Lines","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Line CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Line Description","len":200,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Line Network Hold MOH Audio Source","len":3,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Line Presence Group","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Line Text Label","len":120,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Line User Hold MOH Audio Source","len":3,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Location","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"Log Missed Calls","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Login User ID","len":50,"type":"String","req":false,"cat":"Device","ops":["UDP"]},{"name":"Logout Profile","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"MLPP CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP","Gateway"]},{"name":"MLPP Domain","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","Gateway"]},{"name":"MLPP Indication","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","Gateway"]},{"name":"MLPP No Answer Ring Duration","len":50,"type":"Integer","req":false,"cat":"Device","ops":["Phone","UDP","RDP","Gateway"]},{"name":"MLPP Preemption","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","Gateway"]},{"name":"MLPP Target","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP","Gateway"]},{"name":"MTP Preferred Originating Codec","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Maximum Number of Calls","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Media Resource Group List","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"Media Resource List","len":50,"type":"String","req":false,"cat":"Device","ops":["RDP"]},{"name":"Messages","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Mobile Smart Client Profile","len":50,"type":"String","req":false,"cat":"Device","ops":[]},{"name":"Mobility User ID","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Module","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 1","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 1 Load Name","len":32,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 2","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 2 Load Name","len":32,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 3","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Module 3 Load Name","len":32,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Monitoring Calling Search Space","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Motorola WSM Connection","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Network Hold MOH Audio Source","len":3,"type":"Integer","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"Network Locale","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Operation Completes By","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Outbound Call Rollover","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Owner User ID","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Packet Capture Duration","len":50,"type":"Integer","req":false,"cat":"Device","ops":["Phone"]},{"name":"Packet Capture Mode","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Park Monitor Forward No Retrieve Ext CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitor Forward No Retrieve Ext Destination","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitor Forward No Retrieve Ext Voice Mail","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitor Forward No Retrieve Int CSS","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitor Forward No Retrieve Int Destination","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitor Forward No Retrieve Int Voice Mail","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Park Monitoring Reversion Timer","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Party Entrance Tone","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Phone Button Template","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","Gateway"]},{"name":"Phone Load Name","len":32,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Phone Personalization","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Primary Phone","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Privacy","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP"]},{"name":"Proxy Server","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Recording Option","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Recording Profile","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Rerouting CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["RDP"]},{"name":"Rerouting Calling Search Space","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Ring Setting (Phone Active)","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Ring setting (Phone Idle)","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Route Partition","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"SIP Profile","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secondary CSS for Forward All","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Secure Authentication URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Directory URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Idle URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Information URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Messages URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Services URL","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Shell Password","len":200,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Secure Shell User","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Services","len":255,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Services Provisioning","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Single Button Barge","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Softkey Template","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP"]},{"name":"Subscriber Cellular Number","len":50,"type":"Integer","req":false,"cat":"Device","ops":["Phone"]},{"name":"T1-CAS Port(E&M) Number","len":50,"type":"Integer","req":false,"cat":"Device","ops":["Gateway"]},{"name":"Use Trusted Relay Point","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"User Hold MOH Audio Source","len":3,"type":"Integer","req":false,"cat":"Device","ops":["Phone","RDP","Gateway"]},{"name":"User ID","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","UDP","RDP"]},{"name":"User Locale","len":50,"type":"String","req":false,"cat":"Device","ops":["Gateway"]},{"name":"Visual Message Waiting Indicator Policy","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Voice Mail Profile","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","RDP","Gateway"]},{"name":"Allow presentation sharing using BFCP","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"URI 1 on Directory Number","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 1 Route Partition on Directory Number","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 1 Is Primary on Directory Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 2 on Directory Number","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 2 Route Partition on Directory Number","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 2 Is Primary on Directory Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 3 on Directory Number","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 3 Route Partition on Directory Number","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 3 Is Primary on Directory Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 4 on Directory Number","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 4 Route Partition on Directory Number","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 4 Is Primary on Directory Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 5 on Directory Number","len":255,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 5 Route Partition on Directory Number","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 5 Is Primary on Directory Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Third-party Registration Required","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Block Incoming Calls while Roaming","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Home Network ID","len":1024,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Caller ID Calling Party Transformation CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Caller ID Use Device Pool Calling Party Transformation CSS","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Remote Number Calling party Transformation CSS","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Remote Number Use Device Pool Calling Party Transformation CSS","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Reject Anonymous Calls","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Allow iX Applicable Media","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Require off-premise location","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Urgent Priority","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Enterprise Number Mask","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Enterprise Add To Local Route Partition","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Enterprise Is Urgent","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Enterprise Advertise Via Globally","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Enterprise Route Partition","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"E164 Is Urgent","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"E164 Add To Local Route Partition","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"E164 Advertise Via Globally","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"E164 Number Mask","len":50,"type":"Integer","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"E164 Route Partition","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Route calls to all remote destinations when client is not connected","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Confidential Access Mode","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Confidential Access Level","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone","Gateway"]},{"name":"Line Confidential Access Mode","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Line Confidential Access Level","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"External Call Control Profile","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Call Control Agent Profile","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP","Gateway"]},{"name":"Wireless LAN Profile Group","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"WiFi Hotspot Profile","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"IsEnterprise Advertised Failover Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"IsE.164 Advertised Failover Number","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 1 Advertise Globally via ILS","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 2 Advertise Globally via ILS","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 3 Advertise Globally via ILS","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 4 Advertise Globally via ILS","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"URI 5 Advertise Globally via ILS","len":1,"type":"Boolean","req":false,"cat":"Line","ops":["Phone","UDP"]},{"name":"Emergency Location (ELIN) Group","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Use Device Pool Calling Party Transformation CSS","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["RDP"]},{"name":"Require Activation Code for Onboarding","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Allow Activation Code MRA Mode","len":1,"type":"Boolean","req":false,"cat":"Device","ops":["Phone"]},{"name":"Activation Code MRA Svc Domain","len":50,"type":"String","req":false,"cat":"Device","ops":["Phone"]},{"name":"Calling Line ID Presentation When Diverted","len":50,"type":"String","req":false,"cat":"Line","ops":["Phone","UDP"]}],"help":["Guidelines to use bat.xlt","Bat.xlt  is a light tool which wont have any DB return trips on the background to enforce the rules. It is mainly kept as light as possible so that CSV creation can be quick.","Validations will be kept minimum and it is upto the user to provide proper data for CSV creation.","General information about bat.xlt :","1) Please refer the sample file in UI before entering the values in excel.","2) In bat.xlt the validations are done mainly to verify the following :","a) Datatype (For ex, string/integer/boolean)","b) Length of the field","c) Values of Mandatory fields.","3) The maximum number of columns that can be configured using bat.xlt is limited due to the Microsoft Excel limitation of 256 columns.\nNote: In MS Excel 2007 the number of columns that can be configured using bat.xlt is extended upto 16000 columns.The steps below should be followed for using bat.xlt \nin MS Excel 2007.\na. Open Bat.xlt\nb. Go to File->Save As and select \"Excel Macro Enabled Workbook\".\nc. Give a name and select Save.\nd. Close the bat.xlt and open the Save As copy of bat.xlt.","4) It is recommended to create csv files with less than or equal to 12000 records for optimum transaction.","5) Create file format option is supported ony for the following tabs :\na) Phones\nb) UDP\nc) Phone-Users\nd) VG224\ne) VG202-204\nf) VG310\ng) VG320\nh) VG350\ni) VG450\nj) ISR4461\nk) VG420\nl) Remote Destination Profile\n For others, the file format is fixed and cannot be customized","6)bat.xlt may not impose any restrictions for certain special characters though they are restricted from the UCM web page. \nAll characters allowed in the webpage must be allowed in bat.xlt..","7) The display names are the same across the tabs inorder to be consistent and avoid confusion.\nFor Eg:In VG224 Tab , Mac Address/Device Name indicates the Domain Name of the Gateway.","8) Pleasre refer the notes mentioned in the bat.xlt sheets for various entities before creating the CSV's.","9)You must choose to \"enable macros\" when you open the BAT spreadsheet.","Some points to be noted :","Add Lines Tab:","1) Only the line fields that are frequently configured are available in Add Lines Tab.","2) For Configuring UDP lines , the file format will be changed from Device Name to Device Profile Name while creating the CSV file.","Add Intercom Tab:","1) Only the line fields that are frequently configured are available in Add Intercom Tab.","2) For Configuring UDP lines , the file format will be changed from Device Name to Device Profile Name while creating the CSV file.","Custom Managers-Assistants Tab:","1) While configuring the Proxy line for the manager line , the Index represented in the file format represents the line index of the phone associated.","Eg: Proxy Line 1 indicates Line DN 1 of the Assistant Device .","VG224 ,VG202-204,VG310,VG320,VG350,VG450,ISR4461,VG420 Tab:","1) For MGCP the Create File Format option is not there.","2) In the file format , Mac Address/Device Name indicates the Domain name for the gateway.","Phones,UDP,Gatewaty Tab:","1) As VB does not support \".\" as a character, the E.164 field has been modified to E164 in the code as well as in the sheet, but when generating the file it has","been changed to E.164"],"dynamic":{"Phones":"Phone","Phones-Users":"Phone","User Device Profiles":"UDP","Remote Destination Profile":"RDP","VG224":"Gateway","VG202-204":"Gateway","VG310":"Gateway","VG320":"Gateway","VG350":"Gateway","VG450":"Gateway","ISR4461":"Gateway","VG420":"Gateway"},"dummyMacSheets":["Phones","Phones-Users","CTI Port","CTI Port-Users"],"repeatGroups":{"speedDial":{"label":"Speed Dials","sheets":["Phones","Phones-Users","User Device Profiles"],"fields":[{"name":"Speed Dial Number","type":"Integer","len":255,"req":false},{"name":"Speed Dial Label","type":"String","len":30,"req":false},{"name":"Speed Dial Label Ascii","type":"String","len":30,"req":false}]},"blfSpeedDial":{"label":"BLF Speed Dials","sheets":["Phones","Phones-Users","User Device Profiles"],"fields":[{"name":"Busy Lamp Field Destination","type":"String","len":255,"req":false},{"name":"Busy Lamp Field Directory Number","type":"Integer","len":50,"req":false},{"name":"Busy Lamp Field Label","type":"String","len":30,"req":false},{"name":"Busy Lamp Field Label ASCII","type":"String","len":30,"req":false},{"name":"Busy Lamp Field Call Pickup","type":"Boolean","len":1,"req":false}]},"blfDcp":{"label":"BLF Directed Call Parks","sheets":["Phones","Phones-Users","User Device Profiles"],"fields":[{"name":"BLF Directed Call Park Directory Number","type":"Integer","len":50,"req":false},{"name":"BLF Directed Call Park Label","type":"String","len":30,"req":false},{"name":"BLF Directed Call Park Label ASCII","type":"String","len":30,"req":false}]},"remoteDest":{"label":"Remote Destinations","sheets":["Remote Destination Profile"],"fields":[{"name":"Remote Destination Name","type":"String","len":50,"req":false},{"name":"Remote Destination Number","type":"Integer","len":50,"req":false},{"name":"Time of Day Access","type":"String","len":50,"req":false},{"name":"Time Zone","type":"String","len":50,"req":false},{"name":"Enable Mobile Connect","type":"Boolean","len":1,"req":false},{"name":"Answer Too Soon Timer","type":"Integer","len":50,"req":false},{"name":"Answer Too Late Timer","type":"Integer","len":50,"req":false},{"name":"Delay Before Ringing Timer","type":"Integer","len":50,"req":false},{"name":"Is Mobile Phone","type":"Boolean","len":1,"req":false}]}},"defaultLineFields":["Directory Number","Display","Line Text Label","Forward Busy Destination","Forward No Answer","Call Pickup Group"]};
+
+/* ── state ──────────────────────────────────────────────────────────── */
+const state = {};           // sheetName -> {columns:[], rows:[[]], fmt:{...}, dummy:false}
+let current = null;         // active sheet name
+
+function sheetDef(name){ return MODEL.sheets.find(s => s.name === name); }
+function isDynamic(name){ return Object.prototype.hasOwnProperty.call(MODEL.dynamic, name); }
+function txnKey(name){ return MODEL.dynamic[name]; }
+
+function dbFields(txn, cat){
+  return MODEL.database.filter(f => f.cat === cat && f.ops.includes(txn));
+}
+
+function initSheet(name){
+  if (state[name]) return state[name];
+  const def = sheetDef(name);
+  const st = {
+    columns: def.columns.map(c => ({...c, base:true})),
+    rows: [],
+    dummy: false,
+    fmt: null,
+  };
+  if (isDynamic(name)){
+    st.fmt = {device:[], line:[], intercom:[], counts:{lines:0,intercoms:0,speedDial:0,blfSpeedDial:0,blfDcp:0,remoteDest:0}};
+  }
+  state[name] = st;
+  return st;
+}
+
+/* ── dynamic format ─────────────────────────────────────────────────── */
+function rebuildDynamicColumns(name){
+  const st = state[name];
+  const def = sheetDef(name);
+  const cols = def.columns.map(c => ({...c, base:true}));
+  const f = st.fmt;
+  // device fields
+  for (const fd of f.device) cols.push({name: fd.name, type: fd.type, len: fd.len, req: fd.req});
+  // per-line groups: "Field Name N" (Directory Number leads each set)
+  const dnFirst = arr => {
+    const i = arr.findIndex(x => /^(Intercom )?Directory Number$/i.test(x.name));
+    return i > 0 ? [arr[i], ...arr.slice(0,i), ...arr.slice(i+1)] : arr;
+  };
+  for (let n = 1; n <= f.counts.lines; n++)
+    for (const fd of dnFirst(f.line))
+      cols.push({name: fd.name + " " + n, type: fd.type, len: fd.len, req: fd.req, grp: "L"+n});
+  for (let n = 1; n <= f.counts.intercoms; n++)
+    for (const fd of dnFirst(f.intercom))
+      cols.push({name: fd.name + " " + n, type: fd.type, len: fd.len, req: fd.req, grp: "I"+n});
+  // hardcoded repeat groups
+  for (const [key, grp] of Object.entries(MODEL.repeatGroups)){
+    if (!grp.sheets.includes(name)) continue;
+    const cnt = f.counts[key] || 0;
+    for (let n = 1; n <= cnt; n++)
+      for (const fd of grp.fields)
+        cols.push({name: fd.name + " " + n, type: fd.type, len: fd.len, req: fd.req});
+  }
+  // preserve entered data by column name
+  const oldCols = st.columns, oldRows = st.rows;
+  const map = cols.map(c => oldCols.findIndex(o => o.name === c.name));
+  st.rows = oldRows.map(r => map.map(i => i >= 0 ? (r[i] ?? "") : ""));
+  st.columns = cols;
+}
+
+/* ── grid rendering ─────────────────────────────────────────────────── */
+const gridWrap = document.getElementById("gridWrap");
+
+function renderGrid(){
+  const st = state[current];
+  if (!st.rows.length){
+    gridWrap.innerHTML = '<div id="empty">Click <b>Add Row</b> or <b>Paste from Excel</b> to begin.</div>';
+    updateStatus(); return;
+  }
+  const t = document.createElement("table");
+  const thead = document.createElement("thead");
+  const hr = document.createElement("tr");
+  hr.appendChild(Object.assign(document.createElement("th"), {className:"rownum", textContent:"#"}));
+  for (const c of st.columns){
+    const th = document.createElement("th");
+    if (c.req) th.className = "req";
+    th.textContent = c.name + (c.req ? " *" : "");
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = c.type + (c.len ? "[" + c.len + "]" : "") + (c.req ? " MANDATORY" : " OPTIONAL");
+    th.appendChild(meta);
+    hr.appendChild(th);
+  }
+  hr.appendChild(Object.assign(document.createElement("th"), {textContent:""}));
+  thead.appendChild(hr); t.appendChild(thead);
+
+  const tb = document.createElement("tbody");
+  st.rows.forEach((row, ri) => {
+    const tr = document.createElement("tr");
+    const rn = document.createElement("td"); rn.className = "rownum"; rn.textContent = ri + 1;
+    tr.appendChild(rn);
+    st.columns.forEach((c, ci) => {
+      const td = document.createElement("td");
+      const inp = document.createElement("input");
+      inp.value = row[ci] ?? "";
+      inp.dataset.r = ri; inp.dataset.c = ci;
+      inp.setAttribute("aria-label", c.name + " row " + (ri+1));
+      inp.addEventListener("input", onCell);
+      inp.addEventListener("paste", onCellPaste);
+      td.appendChild(inp);
+      validateCell(td, inp.value, c);
+      tr.appendChild(td);
+    });
+    const tdDel = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "✕"; del.title = "Delete row";
+    del.addEventListener("click", () => { st.rows.splice(ri,1); renderGrid(); });
+    tdDel.appendChild(del); tr.appendChild(tdDel);
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  gridWrap.innerHTML = ""; gridWrap.appendChild(t);
+  updateStatus();
+}
+
+function onCell(e){
+  const st = state[current];
+  const r = +e.target.dataset.r, c = +e.target.dataset.c;
+  st.rows[r][c] = e.target.value;
+  validateCell(e.target.parentElement, e.target.value, st.columns[c]);
+  updateStatus();
+}
+
+/* Excel-style multi-cell paste directly into the grid */
+function onCellPaste(e){
+  const text = (e.clipboardData || window.clipboardData).getData("text");
+  if (!text || (!text.includes("\t") && !text.includes("\n"))) return; // single value: default paste
+  e.preventDefault();
+  const st = state[current];
+  const startR = +e.target.dataset.r, startC = +e.target.dataset.c;
+  const rows = text.replace(/\r/g,"").split("\n").filter(l => l.length);
+  rows.forEach((line, dr) => {
+    const cells = line.split("\t");
+    const rr = startR + dr;
+    while (st.rows.length <= rr) st.rows.push(new Array(st.columns.length).fill(""));
+    cells.forEach((v, dc) => {
+      const cc = startC + dc;
+      if (cc < st.columns.length) st.rows[rr][cc] = v.trim();
+    });
+  });
+  renderGrid();
+}
+
+/* ── validation (mirrors the macro's basic checks) ──────────────────── */
+function cellError(v, col){
+  if (v === "") return null;                    // mandatory checked at export
+  if (v.includes(",")) return "commas are not allowed (comma is the BAT field separator)";
+  if (col.len && v.length > col.len) return "exceeds max length " + col.len;
+  const t = col.type.toUpperCase();
+  if ((t === "INTEGER" || t === "NUMBER") && !/^[0-9#*+X?\[\]\-^ ]+$/i.test(v))
+    return "must be numeric (digits / pattern characters)";
+  if (t === "BOOLEAN" && !/^[tf]$/i.test(v)) return "must be t or f";
+  return null;
+}
+function validateCell(td, v, col){
+  const err = cellError(v, col);
+  td.classList.toggle("invalid", !!err);
+  td.title = err || "";
+}
+
+/* ── status / errors ────────────────────────────────────────────────── */
+function updateStatus(){
+  const st = state[current];
+  const n = st.rows.filter(r => r.some(v => (v||"").trim() !== "")).length;
+  document.getElementById("status").textContent =
+    st.columns.length + " cols · " + n + " record" + (n===1?"":"s");
+}
+function showErrors(list){
+  const el = document.getElementById("errs");
+  if (!list.length){ el.classList.remove("open"); el.innerHTML=""; return; }
+  el.innerHTML = list.slice(0,200).map(e => "<div>"+e.replace(/</g,"&lt;")+"</div>").join("");
+  el.classList.add("open");
+}
+
+/* ── export: replicate frmFileName header normalization ─────────────── */
+function normalizeHeader(rawName, sheet){
+  let v = rawName.trim().toUpperCase();
+  const U = sheet.toUpperCase();
+  if (v.includes("DESK PHONE NAME")) return "DESK PHONE NAME";
+  if (v.includes("MAC ADDRESS")){
+    if (U === "PHONES" || U === "CATALYST 6000 (FXS) PORTS" || U === "PHONES-USERS") return "MAC ADDRESS";
+    if (U === "ADD INTERCOM" || U === "ADD LINES") return "MAC ADDRESS";       // Phones target (UDP target uses Device Profile Name column instead)
+    if (/^VG(224|310|320|350|450|420)$|^VG202-204$|^ISR4461$/.test(U)) return "DOMAIN NAME";
+    if (U === "PHONE MIGRATION") return v;
+    return "DEVICE NAME";
+  }
+  if (v.includes("USER DEVICE PROFILE")) return "USER DEVICE PROFILE";
+  if (v.startsWith("USERID")) return "USER ID";
+  if (v.includes("MANAGER") && U !== "DEFAULT MANAGERS-ASSISTANTS" && U !== "CUSTOM MANAGERS-ASSISTANTS")
+    return "MANAGER USER ID";
+  if (v.includes("REMOTE DESTINATION PROFILE")) return "REMOTE DESTINATION PROFILE NAME";
+  return v;
+}
+function e164Renumber(headers){
+  const counters = {};
+  const map = [
+    ["E164 NUMBER MASK", "E.164 NUMBER MASK"],
+    ["E164 IS URGENT", "E.164 IS URGENT"],
+    ["E164 ADD TO LOCAL ROUTE PARTITION", "E.164 ADD TO LOCAL ROUTE PARTITION"],
+    ["E164 ADVERTISE VIA GLOBALLY", "E.164 ADVERTISE VIA GLOBALLY"],
+    ["E164 ROUTE PARTITION", "E.164 ROUTE PARTITION"],
+  ];
+  return headers.map(h => {
+    for (const [pat, out] of map){
+      if (h.includes(pat)){
+        counters[pat] = (counters[pat] || 0) + 1;
+        return out + " " + counters[pat];
+      }
+    }
+    return h;
+  });
+}
+
+function buildExport(){
+  const st = state[current];
+  const sheet = current;
+  const errs = [];
+  const macCol = st.columns.findIndex(c => /MAC ADDRESS/i.test(c.name));
+  const dataRows = st.rows.filter(r => r.some(v => (v||"").trim() !== ""));
+  if (!dataRows.length){ errs.push("There is no data to export."); return {errs}; }
+
+  dataRows.forEach((row, i) => {
+    st.columns.forEach((c, ci) => {
+      const v = (row[ci] || "").trim();
+      if (c.req && v === ""){
+        if (st.dummy && ci === macCol) return;   // dummy MAC: MAC may be blank
+        errs.push("Row " + (i+1) + ": '" + c.name + "' is mandatory.");
+        return;
+      }
+      const e = cellError(v, c);
+      if (e) errs.push("Row " + (i+1) + ", '" + c.name + "': " + e);
+    });
+    // a populated line/intercom group must include its Directory Number
+    const groups = {};
+    st.columns.forEach((c, ci) => {
+      if (!c.grp) return;
+      (groups[c.grp] = groups[c.grp] || []).push(ci);
+    });
+    for (const [g, idxs] of Object.entries(groups)){
+      const hasData = idxs.some(ci => (row[ci]||"").trim() !== "");
+      if (!hasData) continue;
+      const dnIdx = idxs.find(ci => /Directory Number \d+$/i.test(st.columns[ci].name));
+      if (dnIdx !== undefined && (row[dnIdx]||"").trim() === "")
+        errs.push("Row " + (i+1) + ": '" + st.columns[dnIdx].name +
+                  "' is required when other fields of that line are filled.");
+    }
+  });
+  if (errs.length) return {errs};
+
+  let headers = st.columns.map(c => normalizeHeader(c.name, sheet));
+  headers = e164Renumber(headers);
+  const lines = [headers.join(",")];
+  for (const row of dataRows){
+    const vals = st.columns.map((c, ci) => {
+      let v = (row[ci] || "").trim();
+      if (st.dummy && ci === macCol) v = "";     // macro omits MAC when dummy checked
+      return v;
+    });
+    lines.push(vals.join(","));
+  }
+  return {errs: [], text: lines.join("\r\n") + "\r\n", count: dataRows.length};
+}
+
+function download(name, text){
+  const blob = new Blob([text], {type:"text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name.endsWith(".txt") ? name : name + ".txt";
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* ── format builder UI ──────────────────────────────────────────────── */
+function renderFmt(){
+  const fmtEl = document.getElementById("fmt");
+  const st = state[current];
+  if (!isDynamic(current)){ fmtEl.classList.remove("open"); return; }
+  const txn = txnKey(current);
+  const fill = (id, cat, chosen) => {
+    const box = document.getElementById(id);
+    const fields = dbFields(txn, cat);
+    box.parentElement.style.display = fields.length ? "" : "none";
+    box.innerHTML = "";
+    for (const f of fields){
+      const lab = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.value = f.name;
+      cb.checked = chosen.some(x => x.name === f.name);
+      lab.appendChild(cb);
+      lab.append(" " + f.name + (f.req ? " *" : ""));
+      box.appendChild(lab);
+    }
+  };
+  fill("listDevice", "Device", st.fmt.device);
+  fill("listLine", "Line", st.fmt.line);
+  fill("listIntercom", "Intercom", st.fmt.intercom);
+
+  const counts = document.getElementById("countInputs");
+  counts.innerHTML = "";
+  const addCount = (key, label, max) => {
+    const lab = document.createElement("label");
+    lab.append(label + " ");
+    const inp = document.createElement("input");
+    inp.type = "number"; inp.min = 0; inp.max = max; inp.value = st.fmt.counts[key] || 0;
+    inp.dataset.key = key;
+    lab.appendChild(inp); counts.appendChild(lab);
+  };
+  const hasLine = dbFields(txn, "Line").length, hasInt = dbFields(txn, "Intercom").length;
+  if (hasLine) addCount("lines", "Number of Lines", 50);
+  if (hasInt)  addCount("intercoms", "Number of Intercoms", 10);
+  for (const [key, grp] of Object.entries(MODEL.repeatGroups))
+    if (grp.sheets.includes(current)) addCount(key, grp.label, 100);
+}
+
+document.getElementById("btnApplyFmt").addEventListener("click", () => {
+  const st = state[current];
+  const txn = txnKey(current);
+  const collect = (id, cat) => {
+    const names = [...document.querySelectorAll("#"+id+" input:checked")].map(i => i.value);
+    return dbFields(txn, cat).filter(f => names.includes(f.name));
+  };
+  st.fmt.device = collect("listDevice", "Device");
+  st.fmt.line = collect("listLine", "Line");
+  st.fmt.intercom = collect("listIntercom", "Intercom");
+  document.querySelectorAll("#countInputs input").forEach(i => {
+    st.fmt.counts[i.dataset.key] = Math.max(0, parseInt(i.value || "0", 10) || 0);
+  });
+  if (st.fmt.counts.lines > 0 && !st.fmt.line.length)
+    st.fmt.line = dbFields(txn, "Line").filter(f => MODEL.defaultLineFields.includes(f.name));
+  if (st.fmt.counts.intercoms > 0 && !st.fmt.intercom.length)
+    st.fmt.intercom = dbFields(txn, "Intercom");
+  rebuildDynamicColumns(current);
+  renderGrid();
+  showErrors([]);
+});
+
+/* ── tab switching ──────────────────────────────────────────────────── */
+function selectSheet(name){
+  current = name;
+  initSheet(name);
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("active", b.dataset.name === name));
+  document.getElementById("sheetTitle").textContent = name;
+  const dyn = isDynamic(name);
+  document.getElementById("btnFmt").hidden = !dyn;
+  document.getElementById("fmt").classList.remove("open");
+  if (dyn) renderFmt();
+  const dm = MODEL.dummyMacSheets.includes(name);
+  document.getElementById("dummyWrap").hidden = !dm;
+  document.getElementById("dummyMac").checked = state[name].dummy;
+  showErrors([]);
+  renderGrid();
+}
+
+function buildRail(){
+  const tabs = document.getElementById("tabs");
+  tabs.innerHTML = "";
+  const q = document.getElementById("railSearch").value.trim().toLowerCase();
+  for (const s of MODEL.sheets){
+    if (q && !s.name.toLowerCase().includes(q)) continue;
+    const b = document.createElement("button");
+    b.dataset.name = s.name; b.setAttribute("role","tab");
+    b.textContent = s.name;
+    if (isDynamic(s.name)){
+      const tag = document.createElement("span");
+      tag.className = "dyn"; tag.textContent = "FMT";
+      b.appendChild(tag);
+    }
+    if (s.name === current) b.classList.add("active");
+    b.addEventListener("click", () => selectSheet(s.name));
+    tabs.appendChild(b);
+  }
+}
+document.getElementById("railSearch").addEventListener("input", buildRail);
+
+/* ── toolbar ────────────────────────────────────────────────────────── */
+function addRows(n){
+  const st = state[current];
+  for (let i=0;i<n;i++) st.rows.push(new Array(st.columns.length).fill(""));
+  renderGrid();
+}
+document.getElementById("btnAddRow").addEventListener("click", () => addRows(1));
+document.getElementById("btnAddRows").addEventListener("click", () => addRows(10));
+document.getElementById("btnClear").addEventListener("click", () => {
+  if (confirm("Clear all data on '" + current + "'?")){
+    state[current].rows = []; renderGrid(); showErrors([]);
+  }
+});
+document.getElementById("btnFmt").addEventListener("click", () =>
+  document.getElementById("fmt").classList.toggle("open"));
+document.getElementById("dummyMac").addEventListener("change", e =>
+  state[current].dummy = e.target.checked);
+
+/* paste dialog */
+const dlgPaste = document.getElementById("dlgPaste");
+document.getElementById("btnPaste").addEventListener("click", () => {
+  document.getElementById("pasteArea").value = ""; dlgPaste.showModal();
+  document.getElementById("pasteArea").focus();
+});
+document.getElementById("pasteCancel").addEventListener("click", () => dlgPaste.close());
+document.getElementById("pasteGo").addEventListener("click", () => {
+  const st = state[current];
+  const raw = document.getElementById("pasteArea").value.replace(/\r/g,"");
+  const lines = raw.split("\n").filter(l => l.trim().length);
+  for (const line of lines){
+    const cells = line.includes("\t") ? line.split("\t") : line.split(",");
+    const row = new Array(st.columns.length).fill("");
+    cells.forEach((v,i) => { if (i < row.length) row[i] = v.trim(); });
+    st.rows.push(row);
+  }
+  dlgPaste.close(); renderGrid();
+});
+
+/* export dialog */
+const dlgExport = document.getElementById("dlgExport");
+document.getElementById("btnExport").addEventListener("click", () => {
+  const res = buildExport();
+  showErrors(res.errs);
+  if (res.errs.length) return;
+  document.getElementById("exportName").value =
+    current.replace(/[^A-Za-z0-9_-]+/g,"") || "BATexport";
+  document.getElementById("exportSummary").textContent =
+    res.count + " record(s), " + state[current].columns.length +
+    " column(s). Output is a comma-separated .txt with a BAT header line (CRLF line endings).";
+  dlgExport.showModal();
+});
+document.getElementById("exportCancel").addEventListener("click", () => dlgExport.close());
+document.getElementById("exportGo").addEventListener("click", () => {
+  const nm = document.getElementById("exportName").value.trim();
+  if (!nm || /[\\\/]/.test(nm)){ alert("Enter a valid filename."); return; }
+  const res = buildExport();
+  if (res.errs.length){ showErrors(res.errs); dlgExport.close(); return; }
+  download(nm, res.text);
+  dlgExport.close();
+});
+
+/* help */
+const dlgHelp = document.getElementById("dlgHelp");
+document.getElementById("btnHelp").addEventListener("click", () => {
+  const info = "Generated from " + MODEL.source + " on " + MODEL.generated +
+    ".\nThis tool replicates the Cisco BAT xlt macros in plain HTML/JS — no macros or ActiveX required.\n" +
+    "Mandatory columns are marked *. Values may not contain commas.\n\n";
+  document.getElementById("helpBody").textContent = info + MODEL.help.join("\n\n");
+  dlgHelp.showModal();
+});
+document.getElementById("helpClose").addEventListener("click", () => dlgHelp.close());
+
+/* ── boot ───────────────────────────────────────────────────────────── */
+document.getElementById("srcInfo").textContent = MODEL.source;
+buildRail();
+selectSheet(MODEL.sheets[0].name);
+</script>
+</body>
+</html>
