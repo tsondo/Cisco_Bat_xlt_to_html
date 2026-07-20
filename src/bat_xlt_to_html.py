@@ -151,6 +151,103 @@ def parse_header_cell(text):
     return col
 
 
+FORMAT_DIALOG_NOTE = ("Note: Please choose the fields based on whether the field is valid for "
+                      "that phone type. Intercom fields may not be valid for all the phone types. "
+                      "It is at the discretion of the user to choose the right fields for the "
+                      "particular phone type.")
+
+def _gw_notes(model_label, mgcp_len, slot_text):
+    return [
+        f"For MGCP gateways, the device name can be a string of {mgcp_len} characters. "
+        "For SCCP gateways, the MAC address must be a 10 digit hexadecimal value.",
+        f"For {model_label} gateways, only a slot of value {slot_text} can be configured.",
+        f"For {model_label} gateways, only a Subunit of value ZERO can be configured.",
+        "Port Number must lie between 0 and 23.",
+    ]
+
+# Notes shown on each sheet, taken from the text boxes in the original xlt.
+# Gateway-family notes are normalized: the xlt carries copy-paste artifacts
+# ("For VG224..." text left on VG420 etc.) and typos; model names are corrected
+# so the note matches the page it appears on.
+ENTRY_NOTES = {
+    "VG224":     _gw_notes("VG224", 64, "2"),
+    "VG202-204": _gw_notes("VG202-204", 50, "0"),
+    "VG310":     _gw_notes("VG310", 64, "between 0 and 4"),
+    "VG320":     _gw_notes("VG320", 64, "between 0 and 4"),
+    "VG350":     _gw_notes("VG350", 64, "between 0 and 4"),
+    "VG450":     _gw_notes("VG450", 64, "between 0 and 4"),
+    "ISR4461":   _gw_notes("ISR4461", 64, "between 0 and 4"),
+    "VG420":     _gw_notes("VG420", 64, "between 0 and 4"),
+    "VG200 FXS FXO": [
+        "Length of MGCP Domain Name must be less than or equal to 64.",
+        "Port Directory Number must be less than or equal to 24 digits.",
+    ],
+    "VG200 T1Pri T1Cas E1Pri FXS FXO": [
+        "Length of MGCP Domain Name must be less than or equal to 64.",
+        "Port Number, Slot, Subunit and T1-CAS Port(E&M) Number are each at most 3 digits.",
+    ],
+    "Catalyst 6000 (FXS) Ports": [
+        "Port number should be an integer having values between 1 and 24.",
+    ],
+    "End User CAPF Profile": [
+        "Data for \"Operation Completes By\" needs to be in \"YYYY:MM:DD:HH\" format only, "
+        "with valid date values and time values.",
+        "The value for \"Key Size\" should be in bits.",
+        "\"Authentication Mode\", \"Key Size\" and \"Operation Completes By\" fields are not "
+        "mandatory if the Certificate Operation chosen is \"No Pending Operation\".",
+        "Please refer to the Cisco Unified Communications Manager user guides for more "
+        "information on what kind of values can be given for each of the fields supported here.",
+    ],
+    "Insert Infrastructure Device": [
+        "Either of the fields (IPv4, IPv6 and BSSID) should have value.\n"
+        "Ex: IPv4 = xx.xx.xx.xx   IPv6 = xxxx:xxxx:xxxx:xxxx   BSSID = xx:xx:xx:xx:xx",
+        "Access Point Name can contain 1 to 63 characters. All characters except double "
+        "quotes, backslash and non-printable characters.",
+    ],
+    "Users": [
+        "Enable EMCC, Enable Mobility, Enable Mobile Voice Access and Allow Control of "
+        "Device from CTI can take either t or f.",
+        "Access code should be between 3-10 numeric characters.",
+        "Mlpp User Identification Number should be between 6 to 20 digits; Mlpp Password "
+        "between 4 to 20 digits; Mlpp Precedence Authorization Level between 0 and 6.",
+    ],
+    "Update Users": [
+        "Enable EMCC, Enable Mobility, Enable Mobile Voice Access and Allow Control of "
+        "Device from CTI should take either 't' or 'f'.",
+        "Mlpp User Identification Number should be between 6 to 20 digits; Mlpp Password "
+        "between 4 to 20 digits; Mlpp Precedence Authorization Level between 0 and 6.",
+    ],
+    "Trust Group": ["Trusted can take either 'Yes' or 'No'."],
+    "Enrolled Group": ["All Patterns in Group Are Aliases can take either 't' or 'f'."],
+    "Add Lines": [
+        "Values of Log Missed Calls, Reject Anonymous Calls, Urgent Priority and the "
+        "Enterprise/E.164 boolean fields should be either t or f.",
+        "Park Monitor Reversion Timer value should be between 0 and 1200.",
+    ],
+}
+
+# Notes shown in the Create File Format panel (from the xlt's file-format dialog
+# and the constraints the macro enforces around it).
+FORMAT_NOTES = {
+    "Phones": [FORMAT_DIALOG_NOTE,
+               "Number of phone lines may lie between 0 and 34.",
+               "Device-name validation follows the Device Type selected in the toolbar "
+               "(Phones, CTI Port, H.323 Client, VGC Virtual Phone, VGC Phone, Cisco IP "
+               "Communicator) — in the xlt these were radio buttons on the Phones sheet."],
+    "Phones-Users": [FORMAT_DIALOG_NOTE,
+               "Number of phone lines may lie between 0 and 34.",
+               "The Number of Lines value entered per row must not exceed the number of "
+               "lines created in the file format."],
+    "User Device Profiles": [FORMAT_DIALOG_NOTE,
+               "Number of phone lines may lie between 0 and 34.",
+               "The Number of Lines value entered per row must not exceed the number of "
+               "lines created in the file format."],
+    "Remote Destination Profile": [
+               "Number of phone lines may lie between 0 and 34.",
+               "Remote Destination sets contain 9 fields per destination."],
+}
+
+
 def read_workbook(path):
     wb = xlrd.open_workbook(path)
     model = {
@@ -178,7 +275,13 @@ def read_workbook(path):
             if col:
                 cols.append(col)
         if cols:
-            model["sheets"].append({"name": name, "columns": cols})
+            model["sheets"].append({
+                "name": name,
+                "columns": cols,
+                "hidden": sh.visibility != 0,      # hidden tab in the original xlt
+                "entryNotes": ENTRY_NOTES.get(name, []),
+                "formatNotes": FORMAT_NOTES.get(name, []),
+            })
 
     # Hidden Database sheet: ENUM, DISPLAYNAME, LENGTH, TYPE, NECESSITY,
     # LIST (Device/Line/Intercom), OPERATION (Phone:UDP:RDP:Gateway)
@@ -304,6 +407,15 @@ td .del:hover{color:var(--err)}
 #errs div{padding:1px 0}
 #errs div.warn{color:#8a5300}
 #bar select{font:12.5px var(--sans);padding:5px 6px;border:1px solid var(--line);border-radius:4px;background:#fff}
+#notes{margin:0 14px 8px;border:1px solid #e6d9a8;background:#fdf8e3;border-radius:6px;font-size:12.5px;color:#5c4a00}
+#notes .noteHead{padding:6px 10px;cursor:pointer;user-select:none;font-weight:600}
+#notes .noteSrc{font-weight:400;color:#8a7a33}
+#notes ul{margin:0;padding:0 10px 8px 26px}
+#notes li{margin:2px 0;white-space:pre-line}
+#fmtNotes{margin:0 0 10px;padding:8px 10px 8px 26px;border:1px solid #e6d9a8;background:#fdf8e3;border-radius:6px;font-size:12.5px;color:#5c4a00}
+#fmtNotes li{margin:2px 0}
+#tabs .railGroup{display:block;width:100%;text-align:left;border:0;background:none;color:#5a6472;font:600 11.5px var(--sans);padding:8px 10px 4px;cursor:pointer;border-top:1px solid var(--line);margin-top:6px}
+#tabs button.sub{padding-left:22px;font-size:12px}
 
 /* ── dialogs ─────────────────────────────────────────────── */
 dialog{border:1px solid var(--line);border-radius:8px;box-shadow:0 12px 40px rgba(10,25,45,.25);
@@ -361,6 +473,7 @@ kbd{font-family:var(--mono);background:#eef1f4;border:1px solid var(--line);bord
   </div>
 
   <div id="fmt">
+    <ul id="fmtNotes" hidden></ul>
     <div class="cols">
       <fieldset id="fsDevice"><legend>Device Fields</legend><div class="list" id="listDevice"></div></fieldset>
       <fieldset id="fsLine"><legend>Line Fields (per line)</legend><div class="list" id="listLine"></div></fieldset>
@@ -371,6 +484,11 @@ kbd{font-family:var(--mono);background:#eef1f4;border:1px solid var(--line);bord
     </div>
     <div class="note">Changing the format rebuilds this tab's columns. Data already entered is kept
       for columns whose names still exist. This mirrors the xlt's <b>Create File Format</b> dialog.</div>
+  </div>
+
+  <div id="notes" hidden>
+    <div class="noteHead" id="notesToggle">▾ Notes <span class="noteSrc">(from the original xlt)</span></div>
+    <ul id="notesList"></ul>
   </div>
 
   <div id="gridWrap"><div id="empty">Click <b>Add Row</b> or <b>Paste from Excel</b> to begin.</div></div>
@@ -1180,6 +1298,13 @@ function renderFmt(){
   const fmtEl = document.getElementById("fmt");
   const st = state[current];
   if (!isDynamic(current)){ fmtEl.classList.remove("open"); return; }
+  const fnEl = document.getElementById("fmtNotes");
+  const fnotes = (sheetDef(current) || {}).formatNotes || [];
+  fnEl.hidden = !fnotes.length;
+  fnEl.innerHTML = "";
+  for (const n of fnotes){
+    const li = document.createElement("li"); li.textContent = n; fnEl.appendChild(li);
+  }
   const txn = txnKey(current);
   const fill = (id, cat, chosen) => {
     const box = document.getElementById(id);
@@ -1256,20 +1381,42 @@ function selectSheet(name){
   const dtShown = name === "Phones" || name === "Phones-Users";
   document.getElementById("devTypeWrap").hidden = !dtShown;
   document.getElementById("devType").value = state[name].devType || "phone";
+  renderNotes(name);
   showErrors([]);
   renderGrid();
 }
+function sheetDef(name){ return MODEL.sheets.find(s => s.name === name); }
+function renderNotes(name){
+  const def = sheetDef(name);
+  const wrap = document.getElementById("notes");
+  const list = document.getElementById("notesList");
+  const notes = (def && def.entryNotes) || [];
+  wrap.hidden = !notes.length;
+  list.innerHTML = "";
+  for (const n of notes){
+    const li = document.createElement("li");
+    li.textContent = n;
+    list.appendChild(li);
+  }
+  list.hidden = false;
+  document.getElementById("notesToggle").firstChild.textContent = "▾ Notes ";
+}
+document.getElementById("notesToggle").addEventListener("click", () => {
+  const list = document.getElementById("notesList");
+  list.hidden = !list.hidden;
+  document.getElementById("notesToggle").firstChild.textContent = (list.hidden ? "▸" : "▾") + " Notes ";
+});
 document.getElementById("devType").addEventListener("change", e => {
   state[current].devType = e.target.value;
   renderGrid();   // revalidate cells under the new device type
 });
 
+let showHiddenTabs = false;
 function buildRail(){
   const tabs = document.getElementById("tabs");
   tabs.innerHTML = "";
   const q = document.getElementById("railSearch").value.trim().toLowerCase();
-  for (const s of MODEL.sheets){
-    if (q && !s.name.toLowerCase().includes(q)) continue;
+  const mkBtn = s => {
     const b = document.createElement("button");
     b.dataset.name = s.name; b.setAttribute("role","tab");
     b.textContent = s.name;
@@ -1280,7 +1427,22 @@ function buildRail(){
     }
     if (s.name === current) b.classList.add("active");
     b.addEventListener("click", () => selectSheet(s.name));
-    tabs.appendChild(b);
+    return b;
+  };
+  const match = s => !q || s.name.toLowerCase().includes(q);
+  for (const s of MODEL.sheets){
+    if (!s.hidden && match(s)) tabs.appendChild(mkBtn(s));
+  }
+  const hiddenSheets = MODEL.sheets.filter(s => s.hidden && match(s));
+  if (hiddenSheets.length){
+    const div = document.createElement("button");
+    div.className = "railGroup";
+    const open = showHiddenTabs || !!q || hiddenSheets.some(s => s.name === current);
+    div.textContent = (open ? "▾ " : "▸ ") + "More device types (hidden tabs in the xlt)";
+    div.title = "These sheets are hidden tabs in the original spreadsheet — there they are reached via the radio buttons on the Phones tab or by unhiding sheets.";
+    div.addEventListener("click", () => { showHiddenTabs = !showHiddenTabs; buildRail(); });
+    tabs.appendChild(div);
+    if (open) for (const s of hiddenSheets) tabs.appendChild(mkBtn(s)).classList.add("sub");
   }
 }
 document.getElementById("railSearch").addEventListener("input", buildRail);
