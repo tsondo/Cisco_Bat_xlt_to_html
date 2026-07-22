@@ -162,7 +162,7 @@ def _gw_notes(model_label, mgcp_len, slot_text):
         "For SCCP gateways, the MAC address must be a 10 digit hexadecimal value.",
         f"For {model_label} gateways, only a slot of value {slot_text} can be configured.",
         f"For {model_label} gateways, only a Subunit of value ZERO can be configured.",
-        "Port Number must lie between 0 and 23.",
+        "Port Number must lie between 0 and 72.",
     ]
 
 # Notes shown on each sheet, taken from the text boxes in the original xlt.
@@ -187,7 +187,7 @@ ENTRY_NOTES = {
         "Port Number, Slot, Subunit and T1-CAS Port(E&M) Number are each at most 3 digits.",
     ],
     "Catalyst 6000 (FXS) Ports": [
-        "Port number should be an integer having values between 1 and 24.",
+        "Port number should be an integer having values between 0 and 72.",
     ],
     "End User CAPF Profile": [
         "Data for \"Operation Completes By\" needs to be in \"YYYY:MM:DD:HH\" format only, "
@@ -665,7 +665,8 @@ function onCellPaste(e){
   e.preventDefault();
   const st = state[current];
   const startR = +e.target.dataset.r, startC = +e.target.dataset.c;
-  const rows = text.replace(/\r/g,"").split("\n").filter(l => l.length);
+  const rows = text.replace(/\r/g,"").split("\n");
+  if (rows.length && rows[rows.length-1] === "") rows.pop();  // Excel's trailing newline only
   rows.forEach((line, dr) => {
     const cells = line.split("\t");
     const rr = startR + dr;
@@ -957,7 +958,7 @@ const BINDINGS = [
  {p:/PORT NUMBER/, f:v=>{
     if (v==="") return null;
     if (!allow(v,M.digits)) return "The Port Number should contains numbers only.";
-    if (+v<1 || +v>24) return "Port Number value may lie between 1 and 24 only.";
+    if (+v<0 || +v>72) return "Port Number value may lie between 0 and 72 only.";
     return null;}},
  {p:/TIME OF DAY ACCESS NAME/, f:v=>deny(v,M.xGrpName)?"Time of Day Access Name "+GRPMSG:null},
  {p:/ROUTE PARTITION|INTERCOM ROUTE PARTITION|PORT( \d+)? PARTITION|^PARTITION/, f:v=>allow(v,M.partition)?null:"Route Partition can contain alphabets,numbers,spaces and characters '_','-' only."},
@@ -1475,7 +1476,8 @@ document.getElementById("pasteCancel").addEventListener("click", () => dlgPaste.
 document.getElementById("pasteGo").addEventListener("click", () => {
   const st = state[current];
   const raw = document.getElementById("pasteArea").value.replace(/\r/g,"");
-  const lines = raw.split("\n").filter(l => l.trim().length);
+  const lines = raw.split("\n");
+  if (lines.length && lines[lines.length-1].trim() === "") lines.pop();  // trailing newline only
   for (const line of lines){
     const cells = line.includes("\t") ? line.split("\t") : line.split(",");
     const row = new Array(st.columns.length).fill("");
